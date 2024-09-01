@@ -12,5 +12,8 @@
   "devDependencies": {
     "electron": "^31.4.0",
     "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0"
   }
 }
