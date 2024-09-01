@@ -14,6 +14,7 @@ Run the following command in your terminal:
 
 ```bash
 npm install
+npm install chokidar
 ```
 
 ### 3. Run the Application
