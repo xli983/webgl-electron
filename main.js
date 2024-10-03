@@ -1,77 +1,66 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const fs = require('fs');
-const chokidar = require('chokidar');
+const path = require('path');
 
 let mainWindow;
 
-function createWindow() {
+app.whenReady().then(() => {
     mainWindow = new BrowserWindow({
         width: 800,
         height: 600,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            nodeIntegration: false,
-            contextIsolation: true
+            nodeIntegration: true,
+            contextIsolation: false,
+            enableRemoteModule: true
         }
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile('packed.html');
 
-    mainWindow.on('closed', function () {
-        mainWindow = null;
+    ipcMain.handle('select-folders', async () => {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory', 'multiSelections']
+        });
+        return result.filePaths;
     });
+
+    ipcMain.handle('get-folder-structure', async (event, folderPaths) => {
+        const structure = folderPaths.map(getFolderStructure);
+        return structure;
+    });
+
+    ipcMain.handle('add-image', async (event, targetFolder, imagePath) => {
+        try {
+            const fileName = path.basename(imagePath);
+            const destination = path.join(targetFolder, fileName);
+            fs.copyFileSync(imagePath, destination); 
+            return { success: true };
+        } catch (error) {
+            console.error('Error adding image:', error);
+            return { success: false, error };
+        }
+    });
+
+    ipcMain.handle('delete-file', async (event, filePath) => {
+        try {
+            fs.unlinkSync(filePath); 
+            return { success: true };
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            return { success: false, error };
+        }
+    });
+});
+
+function getFolderStructure(folderPath) {
+    const folderContents = fs.readdirSync(folderPath, { withFileTypes: true });
+    return {
+        path: folderPath,
+        children: folderContents.map(file => ({
+            name: file.name,
+            path: path.join(folderPath, file.name),
+            isDirectory: file.isDirectory(),
+            children: file.isDirectory() ? getFolderStructure(path.join(folderPath, file.name)).children : []  // Recursively get the structure for subfolders
+        }))
+    };
 }
-
-app.whenReady().then(() => {
-    createWindow();
-
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
-});
-
-app.on('window-all-closed', function () {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
-
-ipcMain.handle('dialog:openFolder', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-        properties: ['openDirectory']
-    });
-    if (canceled || filePaths.length === 0) {
-        return null;
-    } else {
-        return filePaths[0];
-    }
-});
-
-ipcMain.handle('watch-folder', (event, folderPath) => {
-    const watcher = chokidar.watch(folderPath, {
-        ignored: /(^|[\/\\])\../,
-        persistent: true
-    });
-
-    watcher.on('add', filePath => {
-        mainWindow.webContents.send('folder-changed', { type: 'add', path: filePath });
-    });
-
-    watcher.on('change', filePath => {
-        mainWindow.webContents.send('folder-changed', { type: 'change', path: filePath });
-    });
-
-    watcher.on('unlink', filePath => {
-        mainWindow.webContents.send('folder-changed', { type: 'unlink', path: filePath });
-    });
-
-    fs.readdir(folderPath, (err, files) => {
-        if (err) {
-            console.error('Failed to read directory:', err);
-            return;
-        }
-        const fullPaths = files.map(file => path.join(folderPath, file)); // Full paths only
-        mainWindow.webContents.send('initial-folder-load', fullPaths);
-    });
-});

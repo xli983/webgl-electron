@@ -1,14 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Folder Monitor</title>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="globals.css" />
+  <link rel="stylesheet" href="styleguide.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-    <button id="select-folder-btn">Select Folder</button>
-    <h2>Files in Folder:</h2>
-    <ul id="file-list"></ul>
-    <script src="renderer.js"></script>
+  <div class="frame">
+    <div class="overlap">
+      <div class="overlap-group">
+        <div class="text-container">
+          <div class="text-wrapper">#folder_list</div>
+        </div>
+        <div class="text-container">
+          <p class="folder-item"><span class="span">文件1</span> <span class="text-wrapper-2">#@folder_item</span></p>
+        </div>
+      </div>
+      <div class="div">
+        <p class="heading"> <span class="text-wrapper-3">文件列表</span> <span class="text-wrapper-4">#title2</span> </p>
+        <div class="overlap-group-wrapper">
+          <div class="div-wrapper">
+            <div class="text-wrapper-5">#image_container</div>
+          </div>
+        </div>
+        <div class="drop-area">
+          <div class="overlap-2">
+            <div class="text-wrapper-6">#drop_area</div>
+          </div>
+        </div>
+        <div class="icon">
+          <div class="overlap-3"> <img class="vector-stroke" src="img/vector-431-stroke.svg" />
+            <div class="text-wrapper-7">#select_folders</div>
+          </div>
+        </div>
+      </div>
+      <p class="title"><span class="text-wrapper-3">文件游览器 </span> <span class="text-wrapper-4">#title1</span></p>
+    </div>
+  </div>
 </body>
+
 </html>
