@@ -7,8 +7,8 @@ import mss.tools
 from threading import Thread
 import time
 
-WIDTH = 1920
-HEIGHT = 1080
+WIDTH = 2560
+HEIGHT = 1440
 FPS = 30
 
 async def video_stream(websocket, path):
@@ -24,11 +24,11 @@ async def video_stream(websocket, path):
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
         '-tune', 'zerolatency',  # Tune for low latency
-        '-g', '0.2',  # Set GOP size to 30
+        '-g', '0.1',  # Set GOP size to 30
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
         '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players)
         '-f', 'mp4',  # Output format is raw H.264 bitstream
-        '-bt', '0.1M',
+        '-bt', '0.05M',
         '-pass', '1',
         '-coder', '0',
         '-bf', '0',
