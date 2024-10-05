@@ -29,7 +29,7 @@ cmd = [
     '-s', f'{W}x{H}',           # Input resolution
     '-i', 'pipe:',              # Input comes from stdin (pipe)
     '-vcodec', 'libx264',       # Video codec for encoding
-    '-pix_fmt', 'nv21',         # Output pixel format
+    '-pix_fmt', 'yuv420p',         # Output pixel format
     '-y',                       # Overwrite output file if it exists
     '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
 

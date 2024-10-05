@@ -20,9 +20,10 @@ async def video_stream(websocket, path):
         '-i', 'pipe:',  # Input comes from a pipe (stdin)
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
-        # '-tune', 'zerolatency',  # Tune for low latency
-        '-pix_fmt', 'nv21',  # Output pixel format (compatible with most players) yuv420p
-        '-f', 'h264',  # Output format is raw H.264 bitstream
+        '-tune', 'zerolatency',  # Tune for low latency
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',  # For fragmented MP4
+        '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players) yuv420p
+        '-f', 'mp4',  # Output format is raw H.264 bitstream
         "-bt","4M",
         "-b:a", "2M",
         "-pass","1",
@@ -46,9 +47,11 @@ async def video_stream(websocket, path):
         data_buffer = bytearray()
         while True:
             try:
-                data = ffmpeg_process.stdout.read(1024)
+                data = ffmpeg_process.stdout.read(4096)
                 if not data:
                     break
+                buffer.append(data)
+                continue
                 data_buffer.extend(data)
                 # Parse data_buffer for NAL units
                 while True:
@@ -105,6 +108,7 @@ async def video_stream(websocket, path):
     try:
         while True:
             # Create a dummy frame (replace this with your actual frame data)
+            #frame = np.random.randint(0, 255, (HEIGHT, WIDTH, 3), dtype=np.uint8)
             frame = np.array(pic)
             print(f"frame generated")
 
