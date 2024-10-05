@@ -33,6 +33,12 @@ cmd = [
     '-y',                       # Overwrite output file if it exists
     '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
 
+
+    "-f", "segment",
+    "-segment_time", "1",
+    "-segment_wrap", "5",
+    "-reset_timestamps", "1",
+
     "-bt","4M",
     "-b:a", "2M",
     "-pass","1",
@@ -42,8 +48,15 @@ cmd = [
     "-loop",
     "-wpredp","0",
     "-an",
-    'mozilla_story.mp4'                   # Output file name
+    'mozilla_story%03d.mp4'                   # Output file name
 ]
+
+cmd = ["./ffmpeg","-y", "-framerate", "30",
+    '-f', 'rawvideo',           # Input format
+    '-pix_fmt', 'rgb24',        # Input pixel format
+    '-s', f'{W}x{H}',           # Input resolution 
+    "-i", "pipe:", "-vcodec", "libx264", 
+    "-b:a", "2M", "-bt", "4M", "-pass", "1", "-coder", "0", "-bf", "0", "-flags", "-loop", "-wpredp", "0", "-an", "-f", "mp4", "test.mp4" ]
 
 # Start the ffmpeg subprocess
 process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
@@ -54,9 +67,10 @@ import PIL.Image
 pic = PIL.Image.open('image.png')
 pic = pic.convert('RGB')
 try:
-    for i in range(100):
+    for i in range(1000):
         # Generate a random frame (replace with actual frame data as needed)
         image = np.array(pic)
+        print(i)
 
         # Write the frame to ffmpeg's stdin
         process.stdin.write(image.tobytes())

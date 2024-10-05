@@ -7,7 +7,7 @@ import sys
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 30
-
+import base64
 async def video_stream(websocket, path):
     # FFmpeg command to read raw RGB data and output H.264 encoded fragmented MP4
     ffmpeg_cmd = [
@@ -15,15 +15,18 @@ async def video_stream(websocket, path):
         '-y',  # Overwrite output file if it exists (not needed here but kept for consistency)
         '-f', 'rawvideo',  # Input format is raw video
         '-pix_fmt', 'rgb24',        # Input pixel format
-        '-framerate', '30',  # Input frame rate
+        '-framerate', '20',  # Input frame rate
         '-s', f'{WIDTH}x{HEIGHT}',  # Input resolution
         '-i', 'pipe:',  # Input comes from a pipe (stdin)
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
         '-tune', 'zerolatency',  # Tune for low latency
-        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',  # For fragmented MP4
-        '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players) yuv420p
+        '-g', '30',              # Set GOP size to 30
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+        # '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players) yuv420p
         '-f', 'mp4',  # Output format is raw H.264 bitstream
+        #'-f', 'mpegts',  # Use MPEG-TS format
+
         "-bt","4M",
         "-b:a", "2M",
         "-pass","1",
@@ -32,10 +35,19 @@ async def video_stream(websocket, path):
         "-flags",
         "-loop",
         "-wpredp","0",
+
         "-an",
-        'pipe:1'  # Output to stdout
+        "-"
+        #'pipe:1'  # Output to stdout
     ]
 
+    # ffmpeg_cmd = ["./ffmpeg","-y", "-framerate", "30",
+    # '-f', 'rawvideo',           # Input format
+    # '-pix_fmt', 'rgb24',        # Input pixel format
+    # '-s', f'{WIDTH}x{HEIGHT}',           # Input resolution 
+    # "-i", "pipe:", "-vcodec", "libx264", 
+    # '-movflags', 'frag_keyframe+empty_moov+default_base_moof',  # For fragmented MP4
+    # "-b:a", "2M", "-bt", "4M", "-pass", "1", "-coder", "0", "-bf", "0", "-flags", "-loop", "-wpredp", "0", "-an", "-f", "mp4", "-" ]
 
     # Start the FFmpeg subprocess
     ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -44,57 +56,15 @@ async def video_stream(websocket, path):
     from threading import Thread
     
     def reader():
-        data_buffer = bytearray()
         while True:
             try:
-                data = ffmpeg_process.stdout.read(4096)
+                data = ffmpeg_process.stdout.read(4096*32)
+                print(f"read {len(data)}")
+                #data = base64.b64encode(data)
                 if not data:
                     break
                 buffer.append(data)
                 continue
-                data_buffer.extend(data)
-                # Parse data_buffer for NAL units
-                while True:
-                    # Look for the NAL unit start code (0x00000001 or 0x000001)
-                    start_code_len = 0
-                    if data_buffer.startswith(b'\x00\x00\x01'):
-                        start_code_len = 3
-                    elif data_buffer.startswith(b'\x00\x00\x00\x01'):
-                        start_code_len = 4
-                    else:
-                        # Start code not at the beginning, find it
-                        index = data_buffer.find(b'\x00\x00\x01')
-                        if index == -1:
-                            index = data_buffer.find(b'\x00\x00\x00\x01')
-                        if index == -1:
-                            # No start code found yet, keep the last 3 bytes
-                            if len(data_buffer) > 3:
-                                data_buffer = data_buffer[-3:]
-                            break
-                        else:
-                            # Discard data before the start code
-                            data_buffer = data_buffer[index:]
-                            continue  # Check again for start code at the beginning
-
-                    # Now we have a start code at the beginning
-                    # Find the next start code
-                    next_index = data_buffer.find(b'\x00\x00\x01', start_code_len)
-                    next_index_alt = data_buffer.find(b'\x00\x00\x00\x01', start_code_len)
-                    if next_index == -1 or (next_index_alt != -1 and next_index_alt < next_index):
-                        next_index = next_index_alt
-                    if next_index != -1:
-                        # Extract NAL unit
-                        nal_unit = data_buffer[:next_index]
-                        buffer.append(nal_unit)
-                        # Remove the extracted NAL unit from data_buffer
-                        data_buffer = data_buffer[next_index:]
-                    else:
-                        # No complete NAL unit yet
-                        # If data_buffer is too big, avoid memory issues
-                        if len(data_buffer) > 1_000_000:
-                            print("Data buffer too large, clearing buffer.")
-                            data_buffer = bytearray()
-                        break  # Wait for more data
             except Exception as e:
                 print(f"Error reading ffmpeg stdout: {e}")
                 break
@@ -104,22 +74,35 @@ async def video_stream(websocket, path):
     import PIL.Image
     pic = PIL.Image.open('image.png')
     pic = pic.convert('RGB')
-
+    frameCount = 0
     try:
         while True:
             # Create a dummy frame (replace this with your actual frame data)
             #frame = np.random.randint(0, 255, (HEIGHT, WIDTH, 3), dtype=np.uint8)
-            frame = np.array(pic)
-            print(f"frame generated")
-
+            if frameCount % 10 < 5:
+                frame = 255 -np.array(pic)
+                print(f"zero frame")
+            else:
+                frame = np.array(pic)
+                print(f"pic frame")
+            frame[:200, :200] = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
+            frameCount += 1
             # Write the frame to FFmpeg stdin
-            ffmpeg_process.stdin.write(frame.tobytes())
+            #if generate:
+            if len(buffer) <1000:
+                ffmpeg_process.stdin.write(frame.tobytes())
+            else:
+                print(f"buffer full, skip")
+                #generate = False
             if len(buffer) > 0:
                 nal_unit = buffer.pop(0)
                 
                 await websocket.send(nal_unit)
+                generate = True
                 print(f"sent, reamining: {len(buffer)}")
                 print(f"Sent NAL unit, remaining in buffer: {len(buffer)}")
+            # else:
+            #     ffmpeg_process.stdin.write(frame.tobytes())
             
             while len(buffer) > 10000:
                 buffer.pop(0)
