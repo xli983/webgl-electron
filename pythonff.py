@@ -3,6 +3,10 @@ import sys
 import time
 import numpy as np
 import subprocess
+import os
+
+# Ensure that the ffmpeg executable in the current directory is included in the PATH
+os.environ["PATH"] += os.pathsep + './'
 
 # Set up logging
 logger = logging.getLogger("Writer")
@@ -12,73 +16,58 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Define width and height
+# Video dimensions
 W = 1920
 H = 1080
 
-# Define the ffmpeg command to output to stdout (pipe:1)
-ffmpeg_cmd = [
-    './ffmpeg',  # Use './ffmpeg' to specify the executable in the current directory
-    '-y',  # Overwrite output file if it exists (not needed here but kept for consistency)
-    '-f', 'rawvideo',  # Input format is raw video
-    '-framerate', '30',  # Input frame rate
-    '-pix_fmt', 'bgr24',  # Input pixel format
-    '-s', f'{W}x{H}',  # Input resolution
-    '-i', 'pipe:',  # Input comes from a pipe (stdin)
-    '-vcodec', 'libx264',  # Video codec to use for encoding
+# Construct the ffmpeg command
+cmd = [
+    './ffmpeg',  # Path to the ffmpeg executable in the current directory
+    '-f', 'rawvideo',           # Input format
+    '-framerate', '30',         # Input frame rate
+    '-pix_fmt', 'rgb24',        # Input pixel format
+    '-s', f'{W}x{H}',           # Input resolution
+    '-i', 'pipe:',              # Input comes from stdin (pipe)
+    '-vcodec', 'libx264',       # Video codec for encoding
+    '-pix_fmt', 'nv21',         # Output pixel format
+    '-y',                       # Overwrite output file if it exists
     '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
-    '-tune', 'zerolatency',  # Tune for low latency
-    '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players)
-    '-f', 'h264',  # Output format is raw H.264 bitstream
-    'pipe:1'  # Output to stdout
+
+    "-bt","4M",
+    "-b:a", "2M",
+    "-pass","1",
+    "-coder","0",
+    "-bf","0",
+    "-flags",
+    "-loop",
+    "-wpredp","0",
+    "-an",
+    'mozilla_story.mp4'                   # Output file name
 ]
 
-# Start the ffmpeg process with stdout piped
-process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+# Start the ffmpeg subprocess
+process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 
 frames = 0
 start = time.time()
-
-def reader():
-    while True:
-        data = process.stdout.read(1024)
-        if not data:
-            break
-        print(data.hex())
-
+import PIL.Image
+pic = PIL.Image.open('image.png')
+pic = pic.convert('RGB')
 try:
-    from threading import Thread
-    # Generate and write frames to ffmpeg stdin
-    Thread(target=reader, daemon=True).start()
-    for i in range(10):
-        # Generate a random image (replace with your actual frame data)
-        image = np.random.randint(0, 255, (H, W, 3), dtype=np.uint8)
-        # Write the image data to ffmpeg's stdin
+    for i in range(100):
+        # Generate a random frame (replace with actual frame data as needed)
+        image = np.array(pic)
+
+        # Write the frame to ffmpeg's stdin
         process.stdin.write(image.tobytes())
         frames += 1
-
-    # Close ffmpeg's stdin to signal that no more data will be sent
-    process.stdin.close()
-
-    # # Read ffmpeg's stdout and print the encoded data
-    # while True:
-    #     # Read encoded data from ffmpeg's stdout
-    #     data = process.stdout.read(1024)
-    #     if not data:
-    #         break
-    #     # Print the encoded data (as hex for readability, or handle as needed)
-    #     print(data.hex())
-
-    # Wait for ffmpeg process to finish
-    process.wait()
-
-    # Optionally, read and log any errors from ffmpeg's stderr
-    stderr_output = process.stderr.read().decode()
-    if stderr_output:
-        logger.error(f"FFmpeg stderr: {stderr_output}")
-
 except Exception as e:
-    logger.error(f"An error occurred: {e}")
+    logger.error(f"Error writing frames to ffmpeg: {e}")
+finally:
+    # Close ffmpeg's stdin to indicate no more data is coming
+    process.stdin.close()
+    # Wait for ffmpeg to finish processing
+    process.wait()
 
 elapsed = time.time() - start
 logger.info("%d frames" % frames)
