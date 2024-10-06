@@ -26,7 +26,7 @@ print("Local IP Address:", local_ip)
 
 WIDTH = 2560
 HEIGHT = 1440
-FPS = 40
+FPS = 30
 
 async def video_stream(websocket, path):
     # FFmpeg command to read raw RGB data and output H.264 encoded fragmented MP4
@@ -41,11 +41,11 @@ async def video_stream(websocket, path):
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
         '-tune', 'zerolatency',  # Tune for low latency
-        '-g', '1',  # Set GOP size to 30
+        '-g', '0.5',  # Set GOP size to 30
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
         '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players)
         '-f', 'mp4', 
-        '-b:v', '35M',
+        '-b:v', '40M',
         # '-pass', '1',
         # '-coder', '0',
         # '-bf', '0',
