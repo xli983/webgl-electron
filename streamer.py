@@ -26,7 +26,7 @@ print("Local IP Address:", local_ip)
 
 WIDTH = 1920
 HEIGHT = 1080
-FPS = 40
+FPS = 45
 
 async def video_stream(websocket, path):
     # FFmpeg command to read raw RGB data and output H.264 encoded fragmented MP4
@@ -41,11 +41,11 @@ async def video_stream(websocket, path):
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
         '-tune', 'zerolatency',  # Tune for low latency
-        '-g', '0.3',  # Set GOP size to 30
+        '-g', '1',  # Set GOP size to 30
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
         '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players)
         '-f', 'mp4', 
-        '-b:v', '35M',
+        '-b:v', '25M',
         # '-pass', '1',
         # '-coder', '0',
         # '-bf', '0',
@@ -63,7 +63,7 @@ async def video_stream(websocket, path):
     def reader():
         while True:
             try:
-                data = ffmpeg_process.stdout.read(4096 * 8)
+                data = ffmpeg_process.stdout.read(1024 * 16)
                 if not data:
                     break
                 buffer.append(data)
@@ -77,7 +77,7 @@ async def video_stream(websocket, path):
     with mss.mss() as sct:
         frameCount = 0
         monitor = {"top": 0, "left": 0, "width": WIDTH, "height": HEIGHT}
-
+        data_idx = 0
         try:
             while True:
                 # Capture the screen
@@ -93,18 +93,19 @@ async def video_stream(websocket, path):
                 else:
                     print(f"Buffer full, skipping frame")
 
-                print(f"Sending, remaining: {len(buffer)}")
                 msg = []
                 # if len(buffer) > 0:
                 #     data = buffer.pop(0)
                     #await websocket.send(data)
                 while len(buffer) > 0 and len(msg) < 20:
                     data = buffer.pop(0)
-                    #await websocket.send(data)
-                    msg.append(data)
-                if len(msg) > 0:
-                    msg= b''.join(msg)
-                    await websocket.send(msg)
+                    print(f"Sending {data_idx}, remaining: {len(buffer)}")
+                    data_idx += 1
+                    await websocket.send(data)
+                #     msg.append(data)
+                # if len(msg) > 0:
+                #     msg= b''.join(msg)
+                #     await websocket.send(msg)
                 while len(buffer) > 10000:
                     buffer.pop(0)
                 
