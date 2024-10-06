@@ -5,11 +5,28 @@ import subprocess
 import mss
 import mss.tools
 from threading import Thread
-import time
+import socket
 
-WIDTH = 2560
-HEIGHT = 1440
-FPS = 30
+def get_local_ip():
+    try:
+        # Use a dummy connection to find the local IP address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # You don't need to connect to a real server, just a dummy address
+        s.connect(("8.8.8.8", 80))  # Google's DNS server
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        return str(e)
+
+# Example usage:
+local_ip = get_local_ip()
+print("Local IP Address:", local_ip)
+
+
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 40
 
 async def video_stream(websocket, path):
     # FFmpeg command to read raw RGB data and output H.264 encoded fragmented MP4
@@ -24,16 +41,16 @@ async def video_stream(websocket, path):
         '-vcodec', 'libx264',  # Video codec to use for encoding
         '-preset', 'ultrafast',  # Encoding speed/quality tradeoff
         '-tune', 'zerolatency',  # Tune for low latency
-        '-g', '0.1',  # Set GOP size to 30
+        '-g', '0.3',  # Set GOP size to 30
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
         '-pix_fmt', 'yuv420p',  # Output pixel format (compatible with most players)
-        '-f', 'mp4',  # Output format is raw H.264 bitstream
-        '-bt', '0.05M',
-        '-pass', '1',
-        '-coder', '0',
-        '-bf', '0',
-        '-flags', '-loop',
-        '-wpredp', '0',
+        '-f', 'mp4', 
+        '-b:v', '35M',
+        # '-pass', '1',
+        # '-coder', '0',
+        # '-bf', '0',
+        # '-flags', '-loop',
+        # '-wpredp', '0',
         '-an',  # No audio
         '-'
     ]
@@ -70,7 +87,6 @@ async def video_stream(websocket, path):
                 frame = np.array(screenshot)[:, :, :3]  # Ignore alpha channel if present
                 
                 frameCount += 1
-                #frame[:200, :200] = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
                 
                 if len(buffer) < 1000:
                     ffmpeg_process.stdin.write(frame.tobytes())
@@ -78,17 +94,20 @@ async def video_stream(websocket, path):
                     print(f"Buffer full, skipping frame")
 
                 print(f"Sending, remaining: {len(buffer)}")
-                while len(buffer) > 0:
-                    nal_unit = buffer.pop(0)
-                    await websocket.send(nal_unit)
-
+                msg = []
+                # if len(buffer) > 0:
+                #     data = buffer.pop(0)
+                    #await websocket.send(data)
+                while len(buffer) > 0 and len(msg) < 20:
+                    data = buffer.pop(0)
+                    #await websocket.send(data)
+                    msg.append(data)
+                if len(msg) > 0:
+                    msg= b''.join(msg)
+                    await websocket.send(msg)
                 while len(buffer) > 10000:
                     buffer.pop(0)
                 
-                #current_time = await websocket.recv()
-                #print(f"Received: {current_time}")
-                # Maintain the frame rate
-                #time.sleep(1 / FPS)
         except Exception as e:
             print(f"Error generating frames: {e}")
         finally:
@@ -97,7 +116,7 @@ async def video_stream(websocket, path):
             ffmpeg_process.wait()
 
 # Start the WebSocket server
-start_server = websockets.serve(video_stream, 'localhost', 8765)
+start_server = websockets.serve(video_stream, local_ip, 8765)
 
 # Run the server until interrupted
 asyncio.get_event_loop().run_until_complete(start_server)
