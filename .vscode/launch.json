@@ -2,6 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "PC HTML",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8000/PC.html",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "name": "Python Debugger: Current File",
       "type": "debugpy",
       "request": "launch",

@@ -2,3 +2,5 @@ node_modules/
 dist/
 ffmpeg2pass-0.*
 *.mp4
+releaseOut/*.js
+releaseOut/*.js.map

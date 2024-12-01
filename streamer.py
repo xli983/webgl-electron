@@ -24,9 +24,9 @@ local_ip = get_local_ip()
 print("Local IP Address:", local_ip)
 
 
-WIDTH = 2560
-HEIGHT = 1440
-FPS = 30
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 20
 
 async def video_stream(websocket, path):
     # FFmpeg command to read raw RGB data and output H.264 encoded fragmented MP4
